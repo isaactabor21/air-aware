@@ -1,7 +1,11 @@
 streamlit
-folium
+streamlit_folium
 pandas
 scikit-learn
 numpy
 requests
 datetime
+plotly
+xgboost
+lightgbm
+catboost
