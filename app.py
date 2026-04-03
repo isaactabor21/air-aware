@@ -410,8 +410,8 @@ with tab_results:
 with tab_risk:
     flight_risk.render()
 
-# with tab_weather:
-#     weather_map.render()
+with tab_weather:
+     weather_map.render()
 
 # Footer
 st.markdown("""
