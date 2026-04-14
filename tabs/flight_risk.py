@@ -236,7 +236,7 @@ def render_alternatives(flight, adjusted_prob):
 
 def render():
     if not st.session_state.get("selected_flight"):
-        st.warning("⚠️ Please select a flight on the Flight Results tab first.")
+        st.warning("⚠️ Please select a flight on the Flight Results page first.")
         return
 
     flight = st.session_state.selected_flight

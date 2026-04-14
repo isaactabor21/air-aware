@@ -27,8 +27,10 @@ def reset_search():
     st.session_state.search_completed = False
     st.session_state.search_params = {}
     st.session_state.selected_flight = None
+    st.session_state.flight_selected = False
     st.session_state.live_flights = None
     st.session_state.airline_filter = "All Airlines"
+    st.session_state.active_view = "home"
     st.toast("🔄 Search cleared!", icon="✅")
 
 
@@ -201,6 +203,8 @@ def render():
                 "preferred_airline": preferred_airline,
                 "cabin_class": cabin_class,
             }
+            st.session_state.selected_flight = None
+            st.session_state.flight_selected = False
 
             # Fetch live flights with spinner feedback
             with st.spinner("✈️ Fetching live flight data..."):
@@ -225,7 +229,8 @@ def render():
                 st.session_state.recent_searches = searches[:5]
 
             st.session_state.search_completed = True
-            st.success("✅ Search complete! Click the **📋 Flight Results** tab above.")
+            st.session_state.active_view = "results"
+            st.rerun()
 
     # ── Reset Button (on_click callback) ─────────────────────────────────────
     if st.session_state.get("search_completed"):
@@ -247,6 +252,8 @@ def render():
             if st.button(f"🔄 {search}", key=f"recent_{i}"):  # key= prevents widget ID
                                                                 # collision across re-renders
                 st.session_state.search_completed = True
+                st.session_state.active_view = "results"
                 st.info(f"Re-searching: {search}")
+                st.rerun()
     else:
         st.info("No recent searches yet. Your searches will appear here.")

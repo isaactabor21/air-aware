@@ -237,6 +237,8 @@ defaults = {
     "flight_selected":  False,
     "live_flights":     None,
     "airline_filter":   "All Airlines",
+    "active_view":      "home",
+    "nav_view":         "home",
 }
 for key, val in defaults.items():
     if key not in st.session_state:
@@ -300,17 +302,40 @@ if _missing:
     """, unsafe_allow_html=True)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_home, tab_results, tab_risk, tab_weather = st.tabs([
-    "🏠 Home", "📋 Flight Results", "⚠️ Risk Analysis", "🌤️ Weather Radar"
-])
+NAV_OPTIONS = ["home", "results", "risk", "weather"]
+NAV_LABELS = {
+    "home": "Home",
+    "results": "Flight Results",
+    "risk": "Risk Analysis",
+    "weather": "Weather Radar",
+}
 
-with tab_home:     
+
+def sync_active_view():
+    st.session_state.active_view = st.session_state.nav_view
+
+
+if st.session_state.get("nav_view") != st.session_state.get("active_view"):
+    st.session_state.nav_view = st.session_state.active_view
+
+st.radio(
+    "Navigate",
+    NAV_OPTIONS,
+    format_func=lambda view: NAV_LABELS[view],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="nav_view",
+    on_change=sync_active_view,
+)
+
+active_view = st.session_state.get("active_view", "home")
+if active_view == "home":
     home.render()
-with tab_results:  
+elif active_view == "results":
     flight_results.render()
-with tab_risk:     
+elif active_view == "risk":
     flight_risk.render()
-with tab_weather:  
+else:
     weather_map.render()
 
 st.markdown("""

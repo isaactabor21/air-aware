@@ -147,6 +147,8 @@ def render_flight_card(flight):
             st.session_state.selected_flight = flight
             st.session_state.flight_selected = True
             st.toast(f"✅ Selected {flight['airline']} {flight['flight_num']}!", icon="✈️")
+            st.session_state.active_view = "risk"
+            st.rerun()
 
     st.markdown(f"<hr style='border:none;height:1px;background:{BORDER_COLOR};margin:12px 0;'/>", unsafe_allow_html=True)
 
@@ -173,12 +175,12 @@ def render_weather_alerts(filtered_flights, all_flights):
             </div>""", unsafe_allow_html=True)
     elif filtered_flights:
         st.success("✅ All displayed flights have good on-time probability!")
-    st.info("💡 Select a flight and click the **⚠️ Risk Analysis** tab for details.")
+    st.info("💡 Select a flight to open the Risk Analysis page.")
 
 
 def render():
     if not st.session_state.get("search_completed"):
-        st.warning("⚠️ Please search for a flight on the Home tab first.")
+        st.warning("⚠️ Please search for a flight on the Home page first.")
         return
 
     st.subheader("Flight Results")
@@ -232,13 +234,16 @@ def render():
     if st.session_state.get("flight_selected") and st.session_state.get("selected_flight"):
         sel = st.session_state.selected_flight
         st.markdown(f"<hr style='border:none;height:1px;background:{BORDER_COLOR};margin:16px 0;'/>", unsafe_allow_html=True)
-        st.success(f"✈️ **{sel['airline']} {sel['flight_num']}** selected! Head to **⚠️ Risk Analysis** for the full breakdown.")
+        st.success(f"✈️ **{sel['airline']} {sel['flight_num']}** selected! Open Risk Analysis for the full breakdown.")
         col_a, col_b = st.columns(2)
         with col_a:
             if st.button("📊 View Risk Analysis →", key="goto_risk", use_container_width=True):
-                st.info("Click the **⚠️ Risk Analysis** tab above.")
+                st.session_state.active_view = "risk"
+                st.rerun()
         with col_b:
             if st.button("🔍 New Search", key="new_search_btn", use_container_width=True):
                 st.session_state.search_completed = False
                 st.session_state.flight_selected = False
+                st.session_state.selected_flight = None
+                st.session_state.active_view = "home"
                 st.rerun()
