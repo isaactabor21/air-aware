@@ -15,6 +15,13 @@ YELLOW = '#d29922'
 RED    = '#f85149'
 CARD_BG      = '#0d1117'
 BORDER_COLOR = '#30363d'
+FILTER_DEFAULTS = {
+    "risk_filter_select": "All",
+    "time_filter_select": "All",
+    "price_filter_select": "All",
+    "sort_by_select": "On-Time Probability",
+    "results_airline_filter": "All Airlines",
+}
 
 
 def get_time_period(departure_time):
@@ -46,6 +53,65 @@ def get_risk_color(prob):
     if prob >= LOW_RISK_THRESHOLD:   return GREEN
     elif prob >= MEDIUM_RISK_THRESHOLD: return YELLOW
     return RED
+
+
+def parse_duration_minutes(duration_str):
+    try:
+        parts = duration_str.lower().replace("m", "").split("h")
+        hours = int(parts[0].strip()) if parts[0].strip() else 0
+        minutes = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 0
+        return (hours * 60) + minutes
+    except (IndexError, ValueError, AttributeError):
+        return 9999
+
+
+def reset_results_filters(sort_by="On-Time Probability"):
+    for key, value in FILTER_DEFAULTS.items():
+        st.session_state[key] = value
+    st.session_state.sort_by_select = sort_by
+
+
+def build_flight_labels(flights):
+    if not flights:
+        return {}
+
+    labels = {}
+
+    def add_label(flight_id, label, bg_color, text_color):
+        labels.setdefault(flight_id, []).append(
+            {"label": label, "bg": bg_color, "text": text_color}
+        )
+
+    safest = max(flights, key=lambda x: x["on_time_prob"])
+    fastest = min(flights, key=lambda x: parse_duration_minutes(x.get("duration", "")))
+    add_label(safest["id"], "Lowest Risk", f"{GREEN}22", GREEN)
+    add_label(fastest["id"], "Fastest", "#0c2d4e", "#79c0ff")
+
+    priced_flights = [flight for flight in flights if flight.get("price") and flight["price"] > 0]
+    if priced_flights:
+        min_price = min(flight["price"] for flight in priced_flights)
+        max_price = max(flight["price"] for flight in priced_flights)
+        min_prob = min(flight["on_time_prob"] for flight in priced_flights)
+        max_prob = max(flight["on_time_prob"] for flight in priced_flights)
+
+        def value_score(flight):
+            if max_price == min_price:
+                price_score = 1
+            else:
+                price_score = 1 - ((flight["price"] - min_price) / (max_price - min_price))
+
+            if max_prob == min_prob:
+                reliability_score = 1
+            else:
+                reliability_score = (
+                    (flight["on_time_prob"] - min_prob) / (max_prob - min_prob)
+                )
+            return (0.65 * reliability_score) + (0.35 * price_score)
+
+        best_value = max(priced_flights, key=value_score)
+        add_label(best_value["id"], "Best Value", "#2d1f00", YELLOW)
+
+    return labels
 
 
 def apply_filters(flights, risk_filter, time_filter, price_filter, airline_filter):
@@ -117,7 +183,7 @@ def render_pie_chart(flights):
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key="pie_chart")
 
 
-def render_flight_card(flight):
+def render_flight_card(flight, labels=None):
     prob_color, _ = get_probability_color(flight["on_time_prob"])
     col1, col2, col3, col4 = st.columns([1.5, 2.5, 1.5, 1.5])
 
@@ -131,6 +197,19 @@ def render_flight_card(flight):
 
     with col2:
         st.markdown(f"**{flight['airline']} {flight['flight_num']}**")
+        if labels:
+            pills = "".join(
+                [
+                    (
+                        f"<span style='display:inline-block;margin:0 8px 8px 0;padding:4px 10px;"
+                        f"border-radius:999px;background:{label['bg']};color:{label['text']};"
+                        f"font-size:0.78rem;font-weight:700;border:1px solid {label['text']}44;'>"
+                        f"{label['label']}</span>"
+                    )
+                    for label in labels
+                ]
+            )
+            st.markdown(pills, unsafe_allow_html=True)
         st.markdown(f"**{flight['origin']}** → **{flight['destination']}**")
         st.markdown(f"{flight['departure']} – {flight['arrival']} · {flight['duration']}")
         st.caption(f"{flight['stops']}  ·  Status: {flight.get('status','—')}")
@@ -177,6 +256,22 @@ def render_weather_alerts(filtered_flights, all_flights):
         st.success("✅ All displayed flights have good on-time probability!")
     st.info("💡 Select a flight to open the Risk Analysis page.")
 
+def render_analytics_summary(flights):
+    prices = [flight["price"] for flight in flights if flight.get("price")]
+    avg_price = f"${round(sum(prices) / len(prices))}" if prices else "N/A"
+    avg_prob = round(sum(flight["on_time_prob"] for flight in flights) / len(flights))
+    low_risk_count = len([flight for flight in flights if flight["on_time_prob"] >= LOW_RISK_THRESHOLD])
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Flights Compared", len(flights))
+    with col2:
+        st.metric("Average On-Time", f"{avg_prob}%")
+    with col3:
+        st.metric("Average Price", avg_price)
+
+    st.caption(f"{low_risk_count} flight(s) are currently in the low-risk range.")
+
 
 def render():
     if not st.session_state.get("search_completed"):
@@ -189,6 +284,13 @@ def render():
         dep = params.get("departure_date")
         dep_str = dep.strftime("%b %d") if hasattr(dep, "strftime") else str(dep)
         st.markdown(f"### {params.get('origin','?')} → {params.get('destination','?')} · {dep_str}")
+
+    st.caption("Start with the Flights tab to pick an option. Open Analytics when you want the comparison charts.")
+
+    source_flights = st.session_state.get("live_flights", flights_data)
+    airline_names = ["All Airlines"] + sorted({flight["airline"] for flight in source_flights})
+    if st.session_state.get("results_airline_filter") not in airline_names:
+        st.session_state.results_airline_filter = "All Airlines"
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -204,6 +306,18 @@ def render():
         airline_names = ["All Airlines"] + sorted({f["airline"] for f in all_flights_data})
         airline_filter = st.selectbox("Airline", airline_names, key="results_airline_filter")
 
+    action_col1, action_col2, _ = st.columns([1, 1, 3])
+    with action_col1:
+        if st.button("Clear Filters", key="clear_results_filters", use_container_width=True):
+            reset_results_filters()
+            st.rerun()
+    with action_col2:
+        if st.button("Show Safest Flights", key="show_safest_flights", use_container_width=True):
+            reset_results_filters()
+            st.session_state.risk_filter_select = "Low Risk (67-100%)"
+            st.session_state.sort_by_select = "On-Time Probability"
+            st.rerun()
+
     if risk_filter == "High Risk (0-32%)" and price_filter == "Over $400":
         st.warning("⚠️ High-risk flights rarely exceed $400 — you may get no results with this combination.")
 
@@ -211,6 +325,60 @@ def render():
         source_flights = st.session_state.get("live_flights", flights_data)
         filtered = apply_filters(source_flights, risk_filter, time_filter, price_filter, airline_filter)
         filtered = sort_flights(filtered, sort_by)
+
+    if not filtered:
+        st.warning("No flights match your current filters.")
+        recovery_col1, recovery_col2 = st.columns(2)
+        with recovery_col1:
+            if st.button("Reset All Result Filters", key="reset_filters_empty", use_container_width=True):
+                reset_results_filters()
+                st.rerun()
+        with recovery_col2:
+            if st.button("Show Only Safest Options", key="show_safest_empty", use_container_width=True):
+                reset_results_filters()
+                st.session_state.risk_filter_select = "Low Risk (67-100%)"
+                st.session_state.sort_by_select = "On-Time Probability"
+                st.rerun()
+        return
+
+    labels_by_id = build_flight_labels(filtered)
+    st.success(f"Showing {len(filtered)} flight{'s' if len(filtered) != 1 else ''}")
+
+    tab_flights, tab_analytics = st.tabs(["Flights", "Analytics"])
+    with tab_flights:
+        st.markdown("#### Available Flights")
+        st.caption("Labels help you scan for the lowest-risk, fastest, and best-value options.")
+        for flight in filtered:
+            render_flight_card(flight, labels_by_id.get(flight["id"], []))
+
+        render_weather_alerts(filtered, source_flights)
+
+        if st.session_state.get("flight_selected") and st.session_state.get("selected_flight"):
+            sel = st.session_state.selected_flight
+            st.markdown(f"<hr style='border:none;height:1px;background:{BORDER_COLOR};margin:16px 0;'/>", unsafe_allow_html=True)
+            st.success(f"Selected: **{sel['airline']} {sel['flight_num']}**. Open Risk Analysis for the full breakdown.")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("View Risk Analysis", key="goto_risk", use_container_width=True):
+                    st.session_state.active_view = "risk"
+                    st.rerun()
+            with col_b:
+                if st.button("New Search", key="new_search_btn", use_container_width=True):
+                    st.session_state.search_completed = False
+                    st.session_state.flight_selected = False
+                    st.session_state.selected_flight = None
+                    st.session_state.active_view = "home"
+                    st.rerun()
+
+    with tab_analytics:
+        render_analytics_summary(filtered)
+        col_bar, col_pie = st.columns([1.5, 1])
+        with col_bar:
+            render_horizontal_bar_chart(filtered)
+        with col_pie:
+            render_pie_chart(filtered)
+
+    return
 
     if not filtered:
         st.warning("📭 No flights match your current filters. Try broadening your selections.")

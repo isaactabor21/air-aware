@@ -5,7 +5,7 @@ st.set_page_config(
     page_title="Air Aware - Flight Search",
     page_icon="✈️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
@@ -13,8 +13,13 @@ st.markdown("""
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
         /* ── Global reset & dark base ── */
-        [data-testid="collapsedControl"] {display: none;}
-        section[data-testid="stSidebar"]  {display: none;}
+        section[data-testid="stSidebar"]  {
+            background: #11161e;
+            border-right: 1px solid #30363d;
+        }
+        [data-testid="stSidebar"] .block-container {
+            padding-top: 1.4rem;
+        }
 
         .stApp {
             background: #0d1117;
@@ -40,20 +45,27 @@ st.markdown("""
         /* ── Header ── */
         .air-aware-header {
             background: linear-gradient(135deg, #1a2332 0%, #0f2942 50%, #1a2332 100%);
-            padding: 25px 40px; border-radius: 14px; margin-bottom: 25px;
+            padding: 22px 34px; border-radius: 14px; margin-bottom: 22px;
             border: 1px solid #30363d;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 6px 28px rgba(0,0,0,0.38);
             display: flex; align-items: center; justify-content: space-between;
         }
         .air-aware-header h1 {
-            color: #f0f6fc; margin: 0; font-size: 2.4rem; font-weight: 700;
+            color: #f0f6fc; margin: 0; font-size: 2.15rem; font-weight: 700;
             font-family: 'DM Sans', sans-serif;
         }
-        .air-aware-header .tagline { color: #8b949e; font-size: 0.95rem; margin-top: 5px; }
-        .header-stats { display: flex; gap: 30px; }
-        .header-stat { text-align: center; }
-        .header-stat .number { font-size: 1.8rem; font-weight: 700; color: #58a6ff; font-family: 'Space Mono', monospace; }
-        .header-stat .label  { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1.5px; }
+        .air-aware-header .tagline { color: #8b949e; font-size: 0.92rem; margin-top: 4px; }
+        .header-stats { display: flex; gap: 18px; }
+        .header-stat {
+            text-align: center;
+            background: rgba(13,17,23,0.35);
+            border: 1px solid rgba(139,148,158,0.15);
+            border-radius: 12px;
+            min-width: 90px;
+            padding: 10px 12px;
+        }
+        .header-stat .number { font-size: 1.35rem; font-weight: 700; color: #79c0ff; font-family: 'Space Mono', monospace; }
+        .header-stat .label  { font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1.2px; }
 
         /* ── Tabs ── */
         .stTabs [data-baseweb="tab-list"] {
@@ -237,6 +249,11 @@ defaults = {
     "flight_selected":  False,
     "live_flights":     None,
     "airline_filter":   "All Airlines",
+    "risk_filter_select": "All",
+    "time_filter_select": "All",
+    "price_filter_select": "All",
+    "sort_by_select": "On-Time Probability",
+    "results_airline_filter": "All Airlines",
     "active_view":      "home",
     "nav_view":         "home",
 }
@@ -309,6 +326,12 @@ NAV_LABELS = {
     "risk": "Risk Analysis",
     "weather": "Weather Radar",
 }
+NAV_ICONS = {
+    "home": "🏠",
+    "results": "📋",
+    "risk": "⚠️",
+    "weather": "🌤️",
+}
 
 
 def sync_active_view():
@@ -318,15 +341,39 @@ def sync_active_view():
 if st.session_state.get("nav_view") != st.session_state.get("active_view"):
     st.session_state.nav_view = st.session_state.active_view
 
-st.radio(
-    "Navigate",
-    NAV_OPTIONS,
-    format_func=lambda view: NAV_LABELS[view],
-    horizontal=True,
-    label_visibility="collapsed",
-    key="nav_view",
-    on_change=sync_active_view,
-)
+with st.sidebar:
+    st.markdown("## Air Aware")
+    st.caption("Move through search, comparison, and risk review without losing your place.")
+    st.radio(
+        "Navigate",
+        NAV_OPTIONS,
+        format_func=lambda view: f"{NAV_ICONS[view]} {NAV_LABELS[view]}",
+        label_visibility="collapsed",
+        key="nav_view",
+        on_change=sync_active_view,
+    )
+    st.markdown("---")
+    st.markdown("### Trip Snapshot")
+    params = st.session_state.get("search_params", {})
+    if params:
+        dep = params.get("departure_date")
+        dep_str = dep.strftime("%b %d, %Y") if hasattr(dep, "strftime") else str(dep)
+        st.markdown(f"**Route**  \n{params.get('origin', '?')} → {params.get('destination', '?')}")
+        st.markdown(f"**Departure**  \n{dep_str}")
+        st.markdown(f"**Passengers**  \n{params.get('passengers', 'Not set')}")
+    else:
+        st.caption("No search yet. Start from Home to find flight options.")
+
+    selected = st.session_state.get("selected_flight")
+    if selected:
+        st.markdown("### Selected Flight")
+        st.markdown(f"**{selected['airline']} {selected['flight_num']}**")
+        st.caption(
+            f"{selected['departure']} – {selected['arrival']} · "
+            f"{selected['on_time_prob']}% on-time"
+        )
+    elif st.session_state.get("search_completed"):
+        st.caption("Choose a flight on the results page to unlock the risk breakdown.")
 
 active_view = st.session_state.get("active_view", "home")
 if active_view == "home":

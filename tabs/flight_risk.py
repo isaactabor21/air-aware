@@ -61,6 +61,41 @@ def render_probability_badge(prob, color, risk_level, is_adjusted=False):
             {note}
         </div>""", unsafe_allow_html=True)
 
+def render_recommendation_summary(flight, adjusted_prob):
+    source = st.session_state.get("live_flights", flights_data)
+    alternatives = sorted(
+        [candidate for candidate in source if candidate["id"] != flight["id"]],
+        key=lambda x: x["on_time_prob"],
+        reverse=True,
+    )
+    better_option = alternatives[0] if alternatives and alternatives[0]["on_time_prob"] > flight["on_time_prob"] else None
+
+    if adjusted_prob >= 75:
+        title = "Good choice"
+        bg, border, text = BG_GREEN, TEXT_GREEN, TEXT_GREEN
+        message = "This flight currently looks reliable and is a strong option to keep."
+    elif adjusted_prob >= 50:
+        title = "Proceed with caution"
+        bg, border, text = BG_YELLOW, TEXT_YELLOW, TEXT_YELLOW
+        message = "This option is workable, but the risk is noticeable enough that a safer alternative may be worth a look."
+    else:
+        title = "Pick an alternative"
+        bg, border, text = BG_RED, TEXT_RED, TEXT_RED
+        message = "Current conditions make this a riskier choice than usual."
+
+    if better_option:
+        message += (
+            f" Better option: {better_option['airline']} {better_option['flight_num']} "
+            f"at {better_option['on_time_prob']}% on-time."
+        )
+
+    st.markdown(f"""
+        <div style="background:{bg};border:1px solid {border}44;border-left:4px solid {border};
+                    padding:16px;border-radius:10px;margin:4px 0 16px;">
+            <div style="color:{text};font-size:1rem;font-weight:700;margin-bottom:6px;">{title}</div>
+            <div style="color:#8b949e;font-size:0.92rem;">{message}</div>
+        </div>""", unsafe_allow_html=True)
+
 
 def weather_card(iata, weather, side="origin"):
     """
@@ -266,6 +301,7 @@ def render():
     st.subheader("Flight Detail & Risk Breakdown")
     render_flight_header(flight)
     render_probability_badge(adjusted_prob, prob_color, risk_level, is_adjusted)
+    render_recommendation_summary(flight, adjusted_prob)
 
     # Show what changed if weather affected the score
     if is_adjusted and adjusted_prob != flight["on_time_prob"]:
