@@ -171,6 +171,19 @@ st.markdown("""
             transform: translateY(-1px);
             box-shadow: 0 6px 20px rgba(248,81,73,0.4);
         }
+        .stButton > button[kind="primary"],
+        .stButton > button[data-testid="stBaseButton-primary"] {
+            background: #1f6feb;
+            color: #ffffff;
+            border: 1px solid rgba(121, 192, 255, 0.28);
+            box-shadow: 0 10px 22px rgba(31,111,235,0.32);
+        }
+        .stButton > button[kind="primary"]:hover,
+        .stButton > button[data-testid="stBaseButton-primary"]:hover {
+            background: #388bfd;
+            color: #ffffff;
+            box-shadow: 0 12px 24px rgba(56,139,253,0.38);
+        }
         .stButton > button:active { transform: translateY(0); }
 
         /* ── Alerts ── */

@@ -122,15 +122,12 @@ def render_weather_radar_callout(flight, origin_weather, dest_weather, adjusted_
         bg = BG_YELLOW
         border = TEXT_YELLOW
         title = "Weather is materially affecting this flight"
-        copy = (
-            f"Live weather is pulling this flight down by about {weather_impact} points. "
-            "Want to inspect live weather conditions around this route? Open Weather Radar."
-        )
+        copy = f"Weather is pulling this flight down by about {weather_impact} points."
     else:
         bg = CARD_BG
         border = "#58a6ff"
         title = "Want a closer look at the weather?"
-        copy = "Want to inspect live weather conditions around this route? Open Weather Radar."
+        copy = "Open Weather Radar for a live route check."
 
     card_col, button_col = st.columns([3.2, 1.2])
     with card_col:
@@ -146,7 +143,12 @@ def render_weather_radar_callout(flight, origin_weather, dest_weather, adjusted_
         )
     with button_col:
         st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-        if st.button("View Weather Radar", key="view_weather_radar_cta", use_container_width=True):
+        if st.button(
+            "View Weather Radar",
+            key="view_weather_radar_cta",
+            use_container_width=True,
+            help="Inspect live radar conditions around the route before you decide on this flight.",
+        ):
             start_view_transition("weather", "Opening live weather radar...")
 
 
@@ -322,9 +324,14 @@ def render_risk_navigation():
     can_view_results = st.session_state.get("search_completed", False)
     can_view_weather = st.session_state.get("selected_flight") is not None
 
-    nav_col1, nav_col2, nav_col3, nav_col4 = st.columns([1.15, 1.15, 1.15, 3.55])
+    nav_col1, nav_col2, nav_col3 = st.columns(3)
     with nav_col1:
-        if st.button("Back to Home", key="risk_back_home", use_container_width=True):
+        if st.button(
+            "Back to Home",
+            key="risk_back_home",
+            use_container_width=True,
+            help="Leave this analysis and start a fresh search from Home.",
+        ):
             start_view_transition(
                 "home",
                 "Returning you to the search page...",
@@ -336,6 +343,7 @@ def render_risk_navigation():
             key="risk_back_results",
             use_container_width=True,
             disabled=not can_view_results,
+            help="Go back to the flight list and compare other options in the same search.",
         ):
             start_view_transition("results", "Returning to your flight options...")
     with nav_col3:
@@ -344,13 +352,9 @@ def render_risk_navigation():
             key="risk_to_weather_top",
             use_container_width=True,
             disabled=not can_view_weather,
+            help="Open the live radar view for extra weather context on this route.",
         ):
             start_view_transition("weather", "Opening live weather radar...")
-    with nav_col4:
-        if can_view_results:
-            st.caption("Use Home for a new route, Results to compare alternatives, and Weather Radar for live conditions.")
-        else:
-            st.caption("Use Home for a new route. Results and Weather Radar unlock as you move through the trip flow.")
 
 
 def render():
@@ -388,7 +392,7 @@ def render():
     render_page_intro(
         "Risk Analysis",
         f"{flight['airline']} {flight['flight_num']}",
-        f"{flight['origin']} → {flight['destination']} · {flight['departure']} – {flight['arrival']} · {flight['duration']}",
+        f"{flight['origin']} → {flight['destination']} · {flight['departure']} – {flight['arrival']}",
         [dep_label, f"{adjusted_prob}% adjusted", risk_level.title()],
     )
     render_probability_badge(adjusted_prob, prob_color, risk_level, is_adjusted)
@@ -409,7 +413,7 @@ def render():
                 Weather adjustment: <strong style="color:{color};">{sign}{delta} pts</strong>
             </div>""", unsafe_allow_html=True)
 
-    render_section_intro("Why this score moved", "Weather and route conditions that are shaping this flight right now.")
+    render_section_intro("Why this score moved")
     col1, col2 = st.columns(2)
     with col1:
         weather_card(flight["origin"], origin_weather, side="origin")
@@ -417,7 +421,7 @@ def render():
         weather_card(flight["destination"], dest_weather, side="dest")
 
     render_performance_cards(flight, adjusted_prob)
-    render_section_intro("Historical context", "See how this flight compares with the recent reliability window.")
+    render_section_intro("Historical context")
     render_historical_chart(flight, adjusted_prob)
-    render_section_intro("Lower-risk alternatives", "If you want a safer option, these are the first flights to check.")
+    render_section_intro("Lower-risk alternatives")
     render_alternatives(flight, adjusted_prob)

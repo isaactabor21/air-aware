@@ -34,7 +34,7 @@ def get_airline_booking_url(flight):
     return f"https://www.google.com/search?q={query}"
 
 
-def render_continue_to_airline(flight, label="Continue to Airline", compact=False):
+def render_continue_to_airline(flight, label="Continue to Airline", compact=False, show_caption=False):
     if not flight:
         st.caption("Select a flight to unlock the airline booking handoff.")
         return
@@ -45,9 +45,11 @@ def render_continue_to_airline(flight, label="Continue to Airline", compact=Fals
         st.caption("Airline booking link unavailable for this flight.")
         return
 
+    hover_copy = f"Opens {airline_name}'s site in a new tab so you can complete booking there."
     button_html = f"""
         <a href="{html.escape(url, quote=True)}" target="_blank" rel="noopener noreferrer"
-           style="text-decoration:none;display:block;width:100%;margin:0 0 0.45rem;color:#ffffff !important;">
+           title="{html.escape(hover_copy, quote=True)}"
+           style="text-decoration:none;display:block;width:100%;margin:0 0 0.45rem;color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;">
             <div style="
                 width:100%;
                 box-sizing:border-box;
@@ -61,9 +63,10 @@ def render_continue_to_airline(flight, label="Continue to Airline", compact=Fals
                 font-size:{'0.92rem' if compact else '1rem'};
                 box-shadow:0 10px 22px rgba(35, 134, 54, 0.22);
             ">
-                {html.escape(label)} ↗
+                <span style="color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;">{html.escape(label)} ↗</span>
             </div>
         </a>
     """
     st.markdown(button_html, unsafe_allow_html=True)
-    st.caption(f"Opens {airline_name}'s site in a new tab so you can complete booking there.")
+    if show_caption:
+        st.caption(hover_copy)

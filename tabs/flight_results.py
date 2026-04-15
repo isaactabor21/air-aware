@@ -222,7 +222,13 @@ def render_flight_card(flight, labels=None):
             st.caption("Price N/A")
 
     with col4:
-        if st.button("Select ✈️", key=f"select_{flight['id']}", use_container_width=True):
+        if st.button(
+            "Select ✈️",
+            key=f"select_{flight['id']}",
+            use_container_width=True,
+            type="primary",
+            help="Open Risk Analysis for this flight and review weather-adjusted delay risk.",
+        ):
             st.session_state.selected_flight = flight
             st.session_state.flight_selected = True
             st.toast(f"✅ Selected {flight['airline']} {flight['flight_num']}!", icon="✈️")
@@ -232,7 +238,7 @@ def render_flight_card(flight, labels=None):
 
 
 def render_weather_alerts(filtered_flights, all_flights):
-    render_section_intro("Decision support", "Use these cues to quickly spot riskier or safer options.")
+    render_section_intro("Decision support")
     risky = [f for f in filtered_flights if f["on_time_prob"] < 50]
     if risky:
         st.markdown(f"""
@@ -253,7 +259,6 @@ def render_weather_alerts(filtered_flights, all_flights):
             </div>""", unsafe_allow_html=True)
     elif filtered_flights:
         st.success("All displayed flights are currently in a healthy reliability range.")
-    st.caption("Select a flight to open Risk Analysis.")
 
 def render_analytics_summary(flights):
     prices = [flight["price"] for flight in flights if flight.get("price")]
@@ -283,10 +288,20 @@ def render_selected_flight_banner(selected_flight):
     )
     col1, col2 = st.columns([1.3, 1.1])
     with col1:
-        if st.button("Review Risk Analysis", key="goto_risk_banner", use_container_width=True):
+        if st.button(
+            "Review Risk Analysis",
+            key="goto_risk_banner",
+            use_container_width=True,
+            help="Go to the selected flight's full risk breakdown with weather effects and alternatives.",
+        ):
             start_view_transition("risk", "Opening the risk breakdown...")
     with col2:
-        if st.button("Start New Search", key="new_search_banner", use_container_width=True):
+        if st.button(
+            "Start New Search",
+            key="new_search_banner",
+            use_container_width=True,
+            help="Clear the current trip and return to Home to search a different route.",
+        ):
             start_view_transition(
                 "home",
                 "Returning you to the search page...",
@@ -304,33 +319,35 @@ def render():
     source_flights = st.session_state.get("live_flights", flights_data)
     selected_flight = st.session_state.get("selected_flight")
     route_title = "Flight Results"
-    route_subtitle = "Compare flights first, then open Analytics only when you want the charts."
+    route_subtitle = "Pick a flight to review next."
     header_chips = [f"{len(source_flights)} option{'s' if len(source_flights) != 1 else ''}"]
     if params:
         dep = params.get("departure_date")
         dep_str = dep.strftime("%b %d") if hasattr(dep, "strftime") else str(dep)
         route_title = f"{params.get('origin','?')} → {params.get('destination','?')}"
-        route_subtitle = f"{dep_str} · Compare flights first, then use Analytics only when you want the supporting charts."
+        route_subtitle = f"{dep_str} · Pick a flight to review next."
         header_chips.append(dep_str)
     if selected_flight:
         header_chips.append("1 flight selected")
     render_page_intro("Flight Results", route_title, route_subtitle, header_chips)
 
-    nav_col1, nav_col2 = st.columns([1.15, 3.85])
+    nav_col1, _ = st.columns([1.15, 3.85])
     with nav_col1:
-        if st.button("Back to Home", key="results_back_home", use_container_width=True):
+        if st.button(
+            "Back to Home",
+            key="results_back_home",
+            use_container_width=True,
+            help="Start over with a different route or travel date.",
+        ):
             start_view_transition(
                 "home",
                 "Returning you to the search page...",
                 action="reset_search_state",
             )
-    with nav_col2:
-        st.caption("Use Home for a different route. Stay here if you only want to refine these options.")
-
     if selected_flight:
         render_selected_flight_banner(selected_flight)
 
-    render_section_intro("Refine results", "Only use filters if you need to narrow the list.")
+    render_section_intro("Refine results")
     airline_names = ["All Airlines"] + sorted({flight["airline"] for flight in source_flights})
     if st.session_state.get("results_airline_filter") not in airline_names:
         st.session_state.results_airline_filter = "All Airlines"
@@ -351,11 +368,21 @@ def render():
 
     action_col1, action_col2, _ = st.columns([1, 1, 3])
     with action_col1:
-        if st.button("Clear Filters", key="clear_results_filters", use_container_width=True):
+        if st.button(
+            "Clear Filters",
+            key="clear_results_filters",
+            use_container_width=True,
+            help="Reset all filters and show the full set of flight options again.",
+        ):
             reset_results_filters()
             st.rerun()
     with action_col2:
-        if st.button("Show Safest Flights", key="show_safest_flights", use_container_width=True):
+        if st.button(
+            "Show Safest Flights",
+            key="show_safest_flights",
+            use_container_width=True,
+            help="Keep only low-risk flights and sort them by reliability.",
+        ):
             reset_results_filters()
             st.session_state.risk_filter_select = "Low Risk (67-100%)"
             st.session_state.sort_by_select = "On-Time Probability"
@@ -373,11 +400,21 @@ def render():
         st.warning("No flights match your current filters.")
         recovery_col1, recovery_col2 = st.columns(2)
         with recovery_col1:
-            if st.button("Reset All Result Filters", key="reset_filters_empty", use_container_width=True):
+            if st.button(
+                "Reset All Result Filters",
+                key="reset_filters_empty",
+                use_container_width=True,
+                help="Clear the filters that are hiding all of the available flights.",
+            ):
                 reset_results_filters()
                 st.rerun()
         with recovery_col2:
-            if st.button("Show Only Safest Options", key="show_safest_empty", use_container_width=True):
+            if st.button(
+                "Show Only Safest Options",
+                key="show_safest_empty",
+                use_container_width=True,
+                help="Jump straight to low-risk flights instead of broadening everything.",
+            ):
                 reset_results_filters()
                 st.session_state.risk_filter_select = "Low Risk (67-100%)"
                 st.session_state.sort_by_select = "On-Time Probability"
@@ -385,18 +422,18 @@ def render():
         return
 
     labels_by_id = build_flight_labels(filtered)
-    st.caption(f"{len(filtered)} flight{'s' if len(filtered) != 1 else ''} match your current filters.")
+    st.caption(f"{len(filtered)} flight{'s' if len(filtered) != 1 else ''}")
 
     tab_flights, tab_analytics = st.tabs(["Flights", "Analytics"])
     with tab_flights:
-        render_section_intro("Flight options", "Select the flight you want to evaluate next.")
+        render_section_intro("Flight options")
         for flight in filtered:
             render_flight_card(flight, labels_by_id.get(flight["id"], []))
 
         render_weather_alerts(filtered, source_flights)
 
     with tab_analytics:
-        render_section_intro("Analytics", "Use the charts when you want a quick reliability and price overview.")
+        render_section_intro("Analytics")
         render_analytics_summary(filtered)
         col_bar, col_pie = st.columns([1.5, 1])
         with col_bar:
