@@ -22,6 +22,168 @@ RESULTS_FILTER_DEFAULTS = {
     "results_airline_filter": "All Airlines",
 }
 
+HOME_PLANNER_CSS = """
+<style>
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) {
+    background: linear-gradient(180deg, rgba(18, 26, 38, 0.96) 0%, rgba(13, 17, 23, 0.98) 100%);
+    border: 1px solid rgba(121, 192, 255, 0.16);
+    border-radius: 20px;
+    padding: 1.35rem 1.35rem 1.15rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+    margin-bottom: 1rem;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-recent-anchor) {
+    background: rgba(13, 17, 23, 0.72);
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    padding: 1rem 1.15rem 0.7rem;
+}
+
+.planner-main-anchor,
+.planner-recent-anchor {
+    display: none;
+}
+
+.trip-planner-eyebrow {
+    color: #79c0ff;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 0.45rem;
+}
+
+.trip-planner-title {
+    color: #f0f6fc;
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 0.45rem;
+}
+
+.trip-planner-copy {
+    color: #8b949e;
+    font-size: 0.95rem;
+    max-width: 720px;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.trip-planner-steps {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.trip-planner-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(13, 17, 23, 0.72);
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.trip-planner-step.is-active {
+    background: rgba(31, 111, 235, 0.18);
+    border-color: rgba(121, 192, 255, 0.34);
+    color: #e6edf3;
+}
+
+.trip-planner-step.is-complete {
+    background: rgba(63, 185, 80, 0.14);
+    border-color: rgba(63, 185, 80, 0.28);
+    color: #c9f8d2;
+}
+
+.trip-planner-step-index {
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.trip-planner-section-label {
+    color: #79c0ff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0.55rem 0 0.25rem;
+}
+
+.trip-planner-section-copy {
+    color: #8b949e;
+    font-size: 0.88rem;
+    margin-bottom: 0.75rem;
+}
+
+.trip-planner-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(48,54,61,0), rgba(48,54,61,0.95), rgba(48,54,61,0));
+    margin: 0.9rem 0 1rem;
+}
+
+.trip-planner-submit-note {
+    color: #8b949e;
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) .stRadio > div {
+    background: rgba(13, 17, 23, 0.6);
+    border: 1px solid rgba(48, 54, 61, 0.95);
+    padding: 0.55rem 0.85rem;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) [data-testid="stForm"] {
+    background: rgba(13, 17, 23, 0.55) !important;
+    border: 1px solid rgba(48, 54, 61, 0.95) !important;
+    border-radius: 16px !important;
+    padding: 1.15rem 1.15rem 1rem !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) .streamlit-expanderHeader {
+    background: rgba(13, 17, 23, 0.55) !important;
+    border-radius: 14px !important;
+    border-color: rgba(48, 54, 61, 0.95) !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) .streamlit-expanderContent {
+    background: rgba(13, 17, 23, 0.35) !important;
+    border-color: rgba(48, 54, 61, 0.95) !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) div[data-testid="stFormSubmitButton"] button {
+    width: 100%;
+    background: linear-gradient(135deg, #1f6feb 0%, #2f81f7 55%, #79c0ff 100%);
+    border: 1px solid rgba(121, 192, 255, 0.26);
+    box-shadow: 0 14px 28px rgba(31, 111, 235, 0.34);
+    padding: 0.95rem 1.2rem;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+div[data-testid="stVerticalBlock"]:has(.planner-main-anchor) div[data-testid="stFormSubmitButton"] button:hover {
+    background: linear-gradient(135deg, #388bfd 0%, #58a6ff 55%, #9cd7ff 100%);
+    box-shadow: 0 16px 30px rgba(56, 139, 253, 0.42);
+}
+</style>
+"""
+
+STEP_LABELS = ["Search", "Select Flight", "View Risk"]
+
 
 # =============================================================================
 # CALLBACKS
@@ -131,7 +293,7 @@ def execute_search(search_params, save_recent=True):
 
 def render_recent_searches():
     with st.expander("Recent Searches", expanded=False):
-        st.caption("Re-run a recent route and restore the last search details.")
+        st.caption("Reopen a saved route without re-entering the trip details.")
         recent = st.session_state.get("recent_searches", [])
         if recent:
             for i, search in enumerate(recent):
@@ -151,13 +313,36 @@ def render_recent_searches():
             st.info("No recent searches yet. Your searches will appear here.")
 
 
+def render_planner_header(step):
+    steps_html = "".join(
+        [
+            (
+                f"<span class='trip-planner-step {'is-complete' if i + 1 < step else 'is-active' if i + 1 == step else ''}'>"
+                f"<span class='trip-planner-step-index'>{'✓' if i + 1 < step else i + 1}</span>"
+                f"{label}</span>"
+            )
+            for i, label in enumerate(STEP_LABELS)
+        ]
+    )
+    st.markdown(
+        f"""
+        <div class="trip-planner-eyebrow">Trip Planner</div>
+        <div class="trip-planner-title">Search once and compare safer flight options faster.</div>
+        <div class="trip-planner-copy">
+            Start with your route here, jump straight into flight results, and open risk analysis only when you are ready to inspect a specific option.
+        </div>
+        <div class="trip-planner-steps">{steps_html}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # =============================================================================
 # RENDER
 # =============================================================================
 
 def render():
-    st.subheader("Search Flights")
-    st.caption("Choose a route and we will take you straight to the flight options that match.")
+    st.markdown(HOME_PLANNER_CSS, unsafe_allow_html=True)
 
     # ── Step indicator (user feedback: multi-step workflow tracker) ──────────
     step = 1
@@ -166,183 +351,171 @@ def render():
     if st.session_state.get("selected_flight"):
         step = 3
 
-    st.markdown(
-        f"""
-        <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
-            {''.join([
-                f'<span style="background:{"#13233a" if i+1 <= step else "#0d1117"};'
-                f'border:1px solid {"#1f6feb66" if i+1 <= step else "#30363d"};'
-                f'color:{"#e6edf3" if i+1 <= step else "#8b949e"};'
-                f'padding:6px 14px; border-radius:20px; font-size:0.82rem; font-weight:600;">'
-                f'{"✓" if i+1 < step else str(i+1)} {label}</span>'
-                for i, label in enumerate(["Search", "Select Flight", "View Risk"])
-            ])}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.container():
+        st.markdown("<div class='planner-main-anchor'></div>", unsafe_allow_html=True)
+        render_planner_header(step)
 
-    # ── Trip Type (Dynamic UI #1: shows/hides return date field) ─────────────
-    st.markdown("### Trip Type")
-    trip_type = st.radio(
-        "Select trip type:",
-        ["One-Way", "Round-Trip", "Multi-City"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key="trip_type_radio",  # key= ensures reset callback can target this widget
-    )
-
-    # ── Origin / Destination — OUTSIDE the form so on_change callback is allowed.
-    # Streamlit forbids callbacks on widgets inside st.form (only form_submit_button
-    # may have a callback inside a form). We place these here and read their values
-    # from session_state inside the form below.
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**From:**")
-        origin = st.selectbox(
-            "Origin Airport",
-            ALL_AIRPORTS,
-            index=ALL_AIRPORTS.index("MSP") if "MSP" in ALL_AIRPORTS else 0,
+        st.markdown("<div class='trip-planner-section-label'>Trip Type</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='trip-planner-section-copy'>Choose the shape of this trip before you set the route.</div>",
+            unsafe_allow_html=True,
+        )
+        trip_type = st.radio(
+            "Select trip type:",
+            ["One-Way", "Round-Trip", "Multi-City"],
+            horizontal=True,
             label_visibility="collapsed",
-            key="origin_select",      # key= lets on_change and reset_search target this widget;
-                                      # without a stable key Streamlit can't identify it across reruns
-            on_change=on_origin_change,  # clears dependent airline dropdown when origin changes
+            key="trip_type_radio",  # key= ensures reset callback can target this widget
         )
 
-    with col2:
-        st.markdown("**To:**")
-        dest_options = [a for a in ALL_AIRPORTS if a != origin]
-        destination = st.selectbox(
-            "Destination Airport",
-            dest_options,
-            label_visibility="collapsed",
-            key="destination_select",
+        st.markdown("<div class='trip-planner-divider'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='trip-planner-section-label'>Route</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='trip-planner-section-copy'>Pick where you are leaving from and where you want to land.</div>",
+            unsafe_allow_html=True,
         )
 
-    # ── Advanced Options (Dynamic UI #2) — also outside form so airline dropdown
-    # can react immediately to origin changes without needing a form submit.
-    with st.expander("⚙️ Advanced Options"):
-        adv_col1, adv_col2 = st.columns(2)
-        with adv_col1:
-            # Dependent dropdown: options come from origin via get_airlines_for_origin().
-            # on_origin_change() resets airline_filter in session_state so this widget
-            # re-renders with the correct options whenever the origin changes.
-            available_airlines = ["All Airlines"] + get_airlines_for_origin(origin)
-            preferred_airline = st.selectbox(
-                "Preferred Airline",
-                available_airlines,
-                key="airline_filter",  # key= is essential: reset_search() and on_origin_change()
-                                       # both write to this key to clear the selection
-            )
-        with adv_col2:
-            cabin_class = st.selectbox(
-                "Cabin Class",
-                ["Economy", "Premium Economy", "Business", "First"],
-                key="cabin_class_select",
-            )
-
-    # ── Main Search Form (dates + passengers + submit) ────────────────────────
-    with st.form("flight_search_form"):
-
-        # Date row — return date only appears for Round-Trip (Dynamic UI #1 continued)
-        if trip_type == "Round-Trip":
-            col3, col4, col5 = st.columns(3)
-        else:
-            col3, col5 = st.columns(2)
-
-        with col3:
-            st.markdown("**Departure Date:**")
-            departure_date = st.date_input(
-                "Departure",
-                min_value=date.today(),
-                value=date.today() + timedelta(days=7),
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**From**")
+            origin = st.selectbox(
+                "Origin Airport",
+                ALL_AIRPORTS,
+                index=ALL_AIRPORTS.index("MSP") if "MSP" in ALL_AIRPORTS else 0,
                 label_visibility="collapsed",
-                key="departure_date_input",  # key= required so reset_search() can target it
-                                              # and return date min_value stays in sync
+                key="origin_select",      # key= lets on_change and reset_search target this widget;
+                                          # without a stable key Streamlit can't identify it across reruns
+                on_change=on_origin_change,  # clears dependent airline dropdown when origin changes
             )
 
-        return_date = None
-        if trip_type == "Round-Trip":
-            with col4:
-                st.markdown("**Return Date:**")
-                return_date = st.date_input(
-                    "Return",
-                    min_value=departure_date + timedelta(days=1),
-                    value=departure_date + timedelta(days=7),
-                    label_visibility="collapsed",
-                    key="return_date_input",
+        with col2:
+            st.markdown("**To**")
+            dest_options = [a for a in ALL_AIRPORTS if a != origin]
+            destination = st.selectbox(
+                "Destination Airport",
+                dest_options,
+                label_visibility="collapsed",
+                key="destination_select",
+            )
+
+        st.markdown("<div class='trip-planner-divider'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='trip-planner-section-label'>Preferences</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='trip-planner-section-copy'>Optional filters to narrow the results before you compare flights.</div>",
+            unsafe_allow_html=True,
+        )
+
+        with st.expander("Airline and cabin preferences", expanded=False):
+            adv_col1, adv_col2 = st.columns(2)
+            with adv_col1:
+                available_airlines = ["All Airlines"] + get_airlines_for_origin(origin)
+                preferred_airline = st.selectbox(
+                    "Preferred Airline",
+                    available_airlines,
+                    key="airline_filter",  # key= is essential: reset_search() and on_origin_change()
+                                           # both write to this key to clear the selection
+                )
+            with adv_col2:
+                cabin_class = st.selectbox(
+                    "Cabin Class",
+                    ["Economy", "Premium Economy", "Business", "First"],
+                    key="cabin_class_select",
                 )
 
-        with col5:
-            st.markdown("**Passengers:**")
-            passengers = st.selectbox(
-                "Passengers",
-                ["1 Adult", "2 Adults", "3 Adults", "4 Adults", "5+ Adults"],
-                label_visibility="collapsed",
-                key="passengers_select",
-            )
-
-        # ── Validation + Submit ───────────────────────────────────────────────
-        search_submitted = st.form_submit_button("🔍 Search Flights")
-
-        if search_submitted:
-            # Input validation: same origin & destination
-            if origin == destination:
-                st.error("⚠️ Origin and destination cannot be the same airport.")
-                st.stop()
-
-            # Input validation: return date must be after departure (extra guard)
-            if trip_type == "Round-Trip" and return_date and return_date <= departure_date:
-                st.error("⚠️ Return date must be after your departure date.")
-                st.stop()
-
-            # Input validation: departure must be today or future
-            if departure_date < date.today():
-                st.error("⚠️ Departure date cannot be in the past.")
-                st.stop()
-
-            # All good — save params and fetch
-            search_params = {
-                "origin": origin,
-                "destination": destination,
-                "departure_date": departure_date,
-                "return_date": return_date,
-                "passengers": passengers,
-                "trip_type": trip_type,
-                "preferred_airline": preferred_airline,
-                "cabin_class": cabin_class,
-            }
-            start_view_transition(
-                "results",
-                "Searching flights and preparing your options...",
-                action="search_flights",
-                payload={"search_params": search_params, "save_recent": True},
-            )
-
-    # ── Reset Button (on_click callback) ─────────────────────────────────────
-    if st.session_state.get("search_completed"):
-        st.button(
-            "🗑️ Reset Search",
-            on_click=reset_search,
-            key="reset_btn",
-            help="Clears all filters and search results",
+        st.markdown("<div class='trip-planner-divider'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='trip-planner-section-label'>Travel Details</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='trip-planner-section-copy'>Set your dates and traveler count. Results open immediately after search.</div>",
+            unsafe_allow_html=True,
         )
 
-    # ── Recent Searches ───────────────────────────────────────────────────────
-    st.markdown("---")
-    render_recent_searches()
-    return
-    st.markdown("### Recent Searches")
-    st.caption("*Click to quickly re-run a past search*")
+        with st.form("flight_search_form"):
+            if trip_type == "Round-Trip":
+                col3, col4, col5 = st.columns(3)
+            else:
+                col3, col5 = st.columns(2)
 
-    recent = st.session_state.get("recent_searches", [])
-    if recent:
-        for i, search in enumerate(recent):
-            if st.button(f"🔄 {search}", key=f"recent_{i}"):  # key= prevents widget ID
-                                                                # collision across re-renders
-                st.session_state.search_completed = True
-                st.session_state.active_view = "results"
-                st.info(f"Re-searching: {search}")
-                st.rerun()
-    else:
-        st.info("No recent searches yet. Your searches will appear here.")
+            with col3:
+                st.markdown("**Departure Date**")
+                departure_date = st.date_input(
+                    "Departure",
+                    min_value=date.today(),
+                    value=date.today() + timedelta(days=7),
+                    label_visibility="collapsed",
+                    key="departure_date_input",  # key= required so reset_search() can target it
+                                                  # and return date min_value stays in sync
+                )
+
+            return_date = None
+            if trip_type == "Round-Trip":
+                with col4:
+                    st.markdown("**Return Date**")
+                    return_date = st.date_input(
+                        "Return",
+                        min_value=departure_date + timedelta(days=1),
+                        value=departure_date + timedelta(days=7),
+                        label_visibility="collapsed",
+                        key="return_date_input",
+                    )
+
+            with col5:
+                st.markdown("**Passengers**")
+                passengers = st.selectbox(
+                    "Passengers",
+                    ["1 Adult", "2 Adults", "3 Adults", "4 Adults", "5+ Adults"],
+                    label_visibility="collapsed",
+                    key="passengers_select",
+                )
+
+            st.markdown(
+                "<div class='trip-planner-submit-note'>Search flights to jump straight into the comparison screen.</div>",
+                unsafe_allow_html=True,
+            )
+            search_submitted = st.form_submit_button("Search Flights", use_container_width=True)
+
+            if search_submitted:
+                if origin == destination:
+                    st.error("⚠️ Origin and destination cannot be the same airport.")
+                    st.stop()
+
+                if trip_type == "Round-Trip" and return_date and return_date <= departure_date:
+                    st.error("⚠️ Return date must be after your departure date.")
+                    st.stop()
+
+                if departure_date < date.today():
+                    st.error("⚠️ Departure date cannot be in the past.")
+                    st.stop()
+
+                search_params = {
+                    "origin": origin,
+                    "destination": destination,
+                    "departure_date": departure_date,
+                    "return_date": return_date,
+                    "passengers": passengers,
+                    "trip_type": trip_type,
+                    "preferred_airline": preferred_airline,
+                    "cabin_class": cabin_class,
+                }
+                start_view_transition(
+                    "results",
+                    "Searching flights and preparing your options...",
+                    action="search_flights",
+                    payload={"search_params": search_params, "save_recent": True},
+                )
+
+        if st.session_state.get("search_completed"):
+            reset_col, note_col = st.columns([1, 2.6])
+            with reset_col:
+                st.button(
+                    "Reset Search",
+                    on_click=reset_search,
+                    key="reset_btn",
+                    help="Clears all filters and search results",
+                    use_container_width=True,
+                )
+            with note_col:
+                st.caption("Need to start fresh? Reset clears the planner and your current results.")
+
+    with st.container():
+        st.markdown("<div class='planner-recent-anchor'></div>", unsafe_allow_html=True)
+        render_recent_searches()

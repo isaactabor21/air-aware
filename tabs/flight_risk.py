@@ -97,6 +97,57 @@ def render_recommendation_summary(flight, adjusted_prob):
         </div>""", unsafe_allow_html=True)
 
 
+def render_weather_radar_callout(flight, origin_weather, dest_weather, adjusted_prob):
+    base_prob = flight["on_time_prob"]
+    weather_impact = max(0, base_prob - adjusted_prob)
+
+    origin_penalty = (
+        origin_weather.get("weather_risk_penalty", 0)
+        if origin_weather and origin_weather.get("source") not in (None, "unavailable")
+        else 0
+    )
+    dest_penalty = (
+        dest_weather.get("weather_risk_penalty", 0)
+        if dest_weather and dest_weather.get("source") not in (None, "unavailable")
+        else 0
+    )
+
+    severe_weather = max(origin_penalty, dest_penalty) >= 20
+    emphasize = weather_impact >= 10 or severe_weather
+
+    if emphasize:
+        bg = BG_YELLOW
+        border = TEXT_YELLOW
+        title = "Weather is materially affecting this flight"
+        copy = (
+            f"Live weather is pulling this flight down by about {weather_impact} points. "
+            "Want to inspect live weather conditions around this route? Open Weather Radar."
+        )
+    else:
+        bg = CARD_BG
+        border = "#58a6ff"
+        title = "Want a closer look at the weather?"
+        copy = "Want to inspect live weather conditions around this route? Open Weather Radar."
+
+    card_col, button_col = st.columns([3.2, 1.2])
+    with card_col:
+        st.markdown(
+            f"""
+            <div style="background:{bg};border:1px solid {border}44;border-left:4px solid {border};
+                        padding:16px;border-radius:10px;margin:0 0 16px;">
+                <div style="color:{border};font-size:0.98rem;font-weight:700;margin-bottom:6px;">{title}</div>
+                <div style="color:#8b949e;font-size:0.92rem;line-height:1.45;">{copy}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with button_col:
+        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+        if st.button("View Weather Radar", key="view_weather_radar_cta", use_container_width=True):
+            st.session_state.active_view = "weather"
+            st.rerun()
+
+
 def weather_card(iata, weather, side="origin"):
     """
     Render a weather card. Handles 3 states:
@@ -302,6 +353,7 @@ def render():
     render_flight_header(flight)
     render_probability_badge(adjusted_prob, prob_color, risk_level, is_adjusted)
     render_recommendation_summary(flight, adjusted_prob)
+    render_weather_radar_callout(flight, origin_weather, dest_weather, adjusted_prob)
 
     # Show what changed if weather affected the score
     if is_adjusted and adjusted_prob != flight["on_time_prob"]:
