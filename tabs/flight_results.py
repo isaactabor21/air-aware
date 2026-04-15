@@ -3,10 +3,9 @@ Flight Results Tab — dark theme edition
 """
 
 import streamlit as st
-from datetime import date
-import time
 import plotly.graph_objects as go
 from data import flights_data, get_probability_color
+from navigation import start_view_transition
 
 LOW_RISK_THRESHOLD  = 67
 MEDIUM_RISK_THRESHOLD = 33
@@ -226,8 +225,7 @@ def render_flight_card(flight, labels=None):
             st.session_state.selected_flight = flight
             st.session_state.flight_selected = True
             st.toast(f"✅ Selected {flight['airline']} {flight['flight_num']}!", icon="✈️")
-            st.session_state.active_view = "risk"
-            st.rerun()
+            start_view_transition("risk", "Building your flight risk analysis...")
 
     st.markdown(f"<hr style='border:none;height:1px;background:{BORDER_COLOR};margin:12px 0;'/>", unsafe_allow_html=True)
 
@@ -360,15 +358,14 @@ def render():
             col_a, col_b = st.columns(2)
             with col_a:
                 if st.button("View Risk Analysis", key="goto_risk", use_container_width=True):
-                    st.session_state.active_view = "risk"
-                    st.rerun()
+                    start_view_transition("risk", "Opening the risk breakdown...")
             with col_b:
                 if st.button("New Search", key="new_search_btn", use_container_width=True):
-                    st.session_state.search_completed = False
-                    st.session_state.flight_selected = False
-                    st.session_state.selected_flight = None
-                    st.session_state.active_view = "home"
-                    st.rerun()
+                    start_view_transition(
+                        "home",
+                        "Returning you to the search page...",
+                        action="reset_search_state",
+                    )
 
     with tab_analytics:
         render_analytics_summary(filtered)

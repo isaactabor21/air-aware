@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date, timedelta
+import time
 
 st.set_page_config(
     page_title="Air Aware - Flight Search",
@@ -237,6 +237,70 @@ st.markdown("""
 
         /* ── Slider ── */
         [data-testid="stSlider"] > div > div > div { background: #1f6feb !important; }
+
+        .page-transition-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: rgba(6, 10, 15, 0.82);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .page-transition-card {
+            min-width: 320px;
+            max-width: 460px;
+            padding: 30px 34px;
+            border-radius: 20px;
+            border: 1px solid rgba(121, 192, 255, 0.18);
+            background: linear-gradient(180deg, rgba(22,27,34,0.96) 0%, rgba(13,17,23,0.98) 100%);
+            box-shadow: 0 20px 55px rgba(0, 0, 0, 0.42);
+            text-align: center;
+        }
+        .page-transition-plane {
+            font-size: 2.8rem;
+            display: inline-block;
+            animation: plane-float 1.1s ease-in-out infinite;
+            transform-origin: center;
+            margin-bottom: 12px;
+        }
+        .page-transition-title {
+            color: #f0f6fc;
+            font-size: 1.12rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .page-transition-copy {
+            color: #8b949e;
+            font-size: 0.93rem;
+            line-height: 1.45;
+        }
+        .page-transition-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(48, 54, 61, 0.9);
+            margin-top: 18px;
+        }
+        .page-transition-bar {
+            width: 38%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #1f6feb, #79c0ff);
+            animation: plane-progress 1.2s ease-in-out infinite;
+        }
+        @keyframes plane-float {
+            0%, 100% { transform: translateY(0px) rotate(-5deg); }
+            50% { transform: translateY(-6px) rotate(2deg); }
+        }
+        @keyframes plane-progress {
+            0% { transform: translateX(-140%); }
+            100% { transform: translateX(360%); }
+        }
+
     </style>
 """, unsafe_allow_html=True)
 
@@ -256,6 +320,15 @@ defaults = {
     "results_airline_filter": "All Airlines",
     "active_view":      "home",
     "nav_view":         "home",
+    "transition_active": False,
+    "transition_phase": None,
+    "transition_target": None,
+    "transition_message": "",
+    "transition_action": None,
+    "transition_payload": None,
+    "transition_started_at": None,
+    "transition_hold_until": None,
+    "transition_error": None,
 }
 for key, val in defaults.items():
     if key not in st.session_state:
@@ -263,6 +336,96 @@ for key, val in defaults.items():
 
 # ── Tab modules ───────────────────────────────────────────────────────────────
 from tabs import home, flight_results, flight_risk, weather_map
+
+
+def render_transition_overlay():
+    message = st.session_state.get("transition_message") or "Preparing your next step..."
+    st.markdown(
+        f"""
+        <div class="page-transition-overlay">
+            <div class="page-transition-card">
+                <div class="page-transition-plane">✈️</div>
+                <div class="page-transition-title">{message}</div>
+                <div class="page-transition-copy">
+                    Air Aware is processing your selection and loading the next screen.
+                </div>
+                <div class="page-transition-track">
+                    <div class="page-transition-bar"></div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def clear_transition_state():
+    st.session_state.transition_active = False
+    st.session_state.transition_phase = None
+    st.session_state.transition_target = None
+    st.session_state.transition_message = ""
+    st.session_state.transition_action = None
+    st.session_state.transition_payload = None
+    st.session_state.transition_started_at = None
+    st.session_state.transition_hold_until = None
+
+
+def fail_transition(message):
+    clear_transition_state()
+    st.session_state.transition_error = message
+    st.session_state.active_view = "home"
+
+
+def process_transition():
+    if not st.session_state.get("transition_active"):
+        return
+
+    render_transition_overlay()
+
+    now = time.monotonic()
+    started_at = st.session_state.get("transition_started_at") or now
+    st.session_state.transition_started_at = started_at
+    if now - started_at >= 10:
+        fail_transition("That took too long to load, so you were returned to Home. Please try again.")
+        st.rerun()
+
+    phase = st.session_state.get("transition_phase") or "show"
+
+    if phase == "show":
+        st.session_state.transition_phase = "run"
+        st.rerun()
+
+    if phase == "run":
+        try:
+            transition_action = st.session_state.get("transition_action")
+            transition_payload = st.session_state.get("transition_payload") or {}
+
+            if transition_action == "search_flights":
+                home.execute_search(
+                    transition_payload.get("search_params", {}),
+                    save_recent=transition_payload.get("save_recent", True),
+                )
+            elif transition_action == "reset_search_state":
+                home.reset_search()
+
+            st.session_state.transition_phase = "finish"
+            st.session_state.transition_hold_until = time.monotonic() + 0.8
+        except Exception:
+            fail_transition("Something went wrong while loading the next page, so you were returned to Home.")
+        st.rerun()
+
+    hold_until = st.session_state.get("transition_hold_until") or now
+    remaining = hold_until - now
+    if remaining > 0:
+        time.sleep(min(remaining, 0.8))
+
+    target_view = st.session_state.get("transition_target") or st.session_state.get("active_view", "home")
+    clear_transition_state()
+    st.session_state.active_view = target_view
+    st.rerun()
+
+
+process_transition()
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -318,6 +481,11 @@ if _missing:
         </div>
     """, unsafe_allow_html=True)
 
+transition_error = st.session_state.pop("transition_error", None)
+if transition_error:
+    st.error(transition_error)
+
+
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 NAV_OPTIONS = ["home", "results", "risk", "weather"]
 NAV_LABELS = {
@@ -336,8 +504,6 @@ NAV_ICONS = {
 
 def sync_active_view():
     st.session_state.active_view = st.session_state.nav_view
-
-
 if st.session_state.get("nav_view") != st.session_state.get("active_view"):
     st.session_state.nav_view = st.session_state.active_view
 

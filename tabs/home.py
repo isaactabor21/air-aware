@@ -12,6 +12,7 @@ Search form with full Milestone 3 adaptive interactivity:
 import streamlit as st
 from datetime import date, timedelta
 from data import ALL_AIRPORTS, get_airlines_for_origin, fetch_live_flights, flights_data
+from navigation import start_view_transition
 
 RESULTS_FILTER_DEFAULTS = {
     "risk_filter_select": "All",
@@ -109,14 +110,13 @@ def save_recent_search(search_params):
     st.session_state.recent_searches = deduped[:5]
 
 
-def run_search(search_params, save_recent=True):
+def execute_search(search_params, save_recent=True):
     st.session_state.search_params = search_params
     st.session_state.selected_flight = None
     st.session_state.flight_selected = False
     reset_results_filters()
 
-    with st.spinner("Fetching flight data..."):
-        live = fetch_live_flights(search_params["origin"], search_params["destination"])
+    live = fetch_live_flights(search_params["origin"], search_params["destination"])
 
     if live is None or len(live) == 0:
         st.session_state.live_flights = flights_data
@@ -127,8 +127,6 @@ def run_search(search_params, save_recent=True):
         save_recent_search(search_params)
 
     st.session_state.search_completed = True
-    st.session_state.active_view = "results"
-    st.rerun()
 
 
 def render_recent_searches():
@@ -141,11 +139,14 @@ def render_recent_searches():
                 if st.button(f"🔄 {record['label']}", key=f"recent_{i}"):
                     if record.get("params"):
                         st.toast(f"Re-running {record['label']}", icon="✈️")
-                        st.session_state.pending_recent_search = record["params"]
-                        st.rerun()
+                        start_view_transition(
+                            "results",
+                            "Re-loading your saved flight options...",
+                            action="search_flights",
+                            payload={"search_params": record["params"], "save_recent": False},
+                        )
                     else:
-                        st.session_state.active_view = "results"
-                        st.rerun()
+                        start_view_transition("results", "Opening your saved flight options...")
         else:
             st.info("No recent searches yet. Your searches will appear here.")
 
@@ -155,11 +156,6 @@ def render_recent_searches():
 # =============================================================================
 
 def render():
-    pending_recent_search = st.session_state.pop("pending_recent_search", None)
-    if pending_recent_search:
-        sync_search_widgets(pending_recent_search)
-        run_search(pending_recent_search, save_recent=False)
-
     st.subheader("Search Flights")
     st.caption("Choose a route and we will take you straight to the flight options that match.")
 
@@ -316,35 +312,12 @@ def render():
                 "preferred_airline": preferred_airline,
                 "cabin_class": cabin_class,
             }
-            run_search(search_params)
-            st.session_state.selected_flight = None
-            st.session_state.flight_selected = False
-
-            # Fetch live flights with spinner feedback
-            with st.spinner("✈️ Fetching live flight data..."):
-                live = fetch_live_flights(origin, destination)
-
-            if live is None:
-                # API unavailable — fall back to mock data with info message
-                st.info("ℹ️ Using estimated flight data (live feed unavailable).")
-                st.session_state.live_flights = flights_data
-            elif len(live) == 0:
-                # API returned empty — still fall back
-                st.session_state.live_flights = flights_data
-            else:
-                st.session_state.live_flights = live
-                st.success(f"✅ Loaded {len(live)} live flights for {origin} → {destination}.")
-
-            # Track recent searches
-            entry = f"{origin} → {destination} — {departure_date.strftime('%b %d')}"
-            searches = st.session_state.get("recent_searches", [])
-            if entry not in searches:
-                searches.insert(0, entry)
-                st.session_state.recent_searches = searches[:5]
-
-            st.session_state.search_completed = True
-            st.session_state.active_view = "results"
-            st.rerun()
+            start_view_transition(
+                "results",
+                "Searching flights and preparing your options...",
+                action="search_flights",
+                payload={"search_params": search_params, "save_recent": True},
+            )
 
     # ── Reset Button (on_click callback) ─────────────────────────────────────
     if st.session_state.get("search_completed"):
