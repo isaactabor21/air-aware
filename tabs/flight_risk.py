@@ -11,6 +11,7 @@ from datetime import datetime
 import plotly.graph_objects as go
 from data import get_probability_color, flights_data, fetch_airport_weather, compute_weather_adjusted_prob
 from navigation import start_view_transition
+from booking import render_continue_to_airline
 
 GREEN  = '#3fb950'
 YELLOW = '#d29922'
@@ -382,6 +383,7 @@ def render():
     render_flight_header(flight)
     render_probability_badge(adjusted_prob, prob_color, risk_level, is_adjusted)
     render_recommendation_summary(flight, adjusted_prob)
+    render_continue_to_airline(flight)
     render_weather_radar_callout(flight, origin_weather, dest_weather, adjusted_prob)
 
     # Show what changed if weather affected the score

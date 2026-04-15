@@ -336,6 +336,7 @@ for key, val in defaults.items():
 
 # ── Tab modules ───────────────────────────────────────────────────────────────
 from tabs import home, flight_results, flight_risk, weather_map
+from booking import render_continue_to_airline
 
 
 def render_transition_overlay():
@@ -538,6 +539,8 @@ with st.sidebar:
             f"{selected['departure']} – {selected['arrival']} · "
             f"{selected['on_time_prob']}% on-time"
         )
+        st.markdown("### Booking")
+        render_continue_to_airline(selected, compact=True)
     elif st.session_state.get("search_completed"):
         st.caption("Choose a flight on the results page to unlock the risk breakdown.")
 
