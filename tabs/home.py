@@ -278,7 +278,11 @@ def execute_search(search_params, save_recent=True):
     live = fetch_live_flights(search_params["origin"], search_params["destination"])
 
     if live is None or len(live) == 0:
-        st.session_state.live_flights = flights_data
+        patched = [
+            {**f, "origin": search_params["origin"], "destination": search_params["destination"]}
+            for f in flights_data
+        ]
+        st.session_state.live_flights = patched
     else:
         st.session_state.live_flights = live
 
