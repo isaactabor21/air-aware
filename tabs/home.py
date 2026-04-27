@@ -10,7 +10,7 @@ Search form with full Milestone 3 adaptive interactivity:
 
 import streamlit as st
 from datetime import date, timedelta
-from data import ALL_AIRPORTS, get_airlines_for_origin, fetch_live_flights, flights_data
+from data import ALL_AIRPORTS, fetch_live_flights, flights_data
 from navigation import start_view_transition
 
 RESULTS_FILTER_DEFAULTS = {
@@ -200,21 +200,10 @@ def reset_search():
     st.session_state.selected_flight = None
     st.session_state.flight_selected = False
     st.session_state.live_flights = None
-    st.session_state.airline_filter = "All Airlines"
     st.session_state.active_view = "home"
     for key, value in RESULTS_FILTER_DEFAULTS.items():
         st.session_state[key] = value
     st.toast("🔄 Search cleared!", icon="✅")
-
-
-def on_origin_change():
-    """
-    on_change callback: when origin changes, reset the dependent airline
-    dropdown so stale selections from the previous origin don't carry over.
-    Without this, a user who had 'Alaska Airlines' selected for LAX would
-    see a broken selection after switching to MSP (where Alaska doesn't fly).
-    """
-    st.session_state.airline_filter = "All Airlines"
 
 
 def reset_results_filters():
@@ -234,17 +223,9 @@ def sync_search_widgets(search_params):
 
     departure_date = search_params.get("departure_date", date.today() + timedelta(days=7))
 
-    available_airlines = ["All Airlines"] + get_airlines_for_origin(origin)
-    preferred_airline = search_params.get("preferred_airline", "All Airlines")
-    if preferred_airline not in available_airlines:
-        preferred_airline = "All Airlines"
-
     st.session_state.origin_select = origin
     st.session_state.destination_select = destination
     st.session_state.departure_date_input = departure_date
-    st.session_state.passengers_select = search_params.get("passengers", "1 Adult")
-    st.session_state.airline_filter = preferred_airline
-    st.session_state.cabin_class_select = search_params.get("cabin_class", "Economy")
 
 
 def make_recent_search_record(search_params):
@@ -278,11 +259,7 @@ def execute_search(search_params, save_recent=True):
     live = fetch_live_flights(search_params["origin"], search_params["destination"])
 
     if live is None or len(live) == 0:
-        patched = [
-            {**f, "origin": search_params["origin"], "destination": search_params["destination"]}
-            for f in flights_data
-        ]
-        st.session_state.live_flights = patched
+        st.session_state.live_flights = flights_data
     else:
         st.session_state.live_flights = live
 
@@ -371,9 +348,7 @@ def render():
                 ALL_AIRPORTS,
                 index=ALL_AIRPORTS.index("MSP") if "MSP" in ALL_AIRPORTS else 0,
                 label_visibility="collapsed",
-                key="origin_select",      # key= lets on_change and reset_search target this widget;
-                                          # without a stable key Streamlit can't identify it across reruns
-                on_change=on_origin_change,  # clears dependent airline dropdown when origin changes
+                key="origin_select",
             )
 
         with col2:
@@ -387,57 +362,21 @@ def render():
             )
 
         st.markdown("<div class='trip-planner-divider'></div>", unsafe_allow_html=True)
-        st.markdown("<div class='trip-planner-section-label'>Preferences</div>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='trip-planner-section-copy'>Optional filters to narrow the results before you compare flights.</div>",
-            unsafe_allow_html=True,
-        )
-
-        with st.expander("Airline and cabin preferences", expanded=False):
-            adv_col1, adv_col2 = st.columns(2)
-            with adv_col1:
-                available_airlines = ["All Airlines"] + get_airlines_for_origin(origin)
-                preferred_airline = st.selectbox(
-                    "Preferred Airline",
-                    available_airlines,
-                    key="airline_filter",  # key= is essential: reset_search() and on_origin_change()
-                                           # both write to this key to clear the selection
-                )
-            with adv_col2:
-                cabin_class = st.selectbox(
-                    "Cabin Class",
-                    ["Economy", "Premium Economy", "Business", "First"],
-                    key="cabin_class_select",
-                )
-
-        st.markdown("<div class='trip-planner-divider'></div>", unsafe_allow_html=True)
         st.markdown("<div class='trip-planner-section-label'>Travel Details</div>", unsafe_allow_html=True)
         st.markdown(
-            "<div class='trip-planner-section-copy'>Set your dates and traveler count. Results open immediately after search.</div>",
+            "<div class='trip-planner-section-copy'>Set your departure date. Results open immediately after search.</div>",
             unsafe_allow_html=True,
         )
 
         with st.form("flight_search_form"):
-            col3, col5 = st.columns(2)
-
-            with col3:
-                st.markdown("**Departure Date**")
-                departure_date = st.date_input(
-                    "Departure",
-                    min_value=date.today(),
-                    value=date.today() + timedelta(days=7),
-                    label_visibility="collapsed",
-                    key="departure_date_input",  # key= required so reset_search() can target it
-                )
-
-            with col5:
-                st.markdown("**Passengers**")
-                passengers = st.selectbox(
-                    "Passengers",
-                    ["1 Adult", "2 Adults", "3 Adults", "4 Adults", "5+ Adults"],
-                    label_visibility="collapsed",
-                    key="passengers_select",
-                )
+            st.markdown("**Departure Date**")
+            departure_date = st.date_input(
+                "Departure",
+                min_value=date.today(),
+                value=date.today() + timedelta(days=7),
+                label_visibility="collapsed",
+                key="departure_date_input",
+            )
 
             st.markdown(
                 "<div class='trip-planner-submit-note'>Search flights to jump straight into the comparison screen.</div>",
@@ -458,9 +397,6 @@ def render():
                     "origin": origin,
                     "destination": destination,
                     "departure_date": departure_date,
-                    "passengers": passengers,
-                    "preferred_airline": preferred_airline,
-                    "cabin_class": cabin_class,
                 }
                 start_view_transition(
                     "results",
