@@ -427,8 +427,9 @@ def process_transition():
 
             st.session_state.transition_phase = "finish"
             st.session_state.transition_hold_until = time.monotonic() + 0.8
-        except Exception:
-            fail_transition("Something went wrong while loading the next page, so you were returned to Home.")
+        except Exception as e:
+            fail_transition(f"Something went wrong while loading the next page, so you were returned to Home. {str(e)}")
+            # st.error(f"Error details (for debugging): {str(transition_error)}")
         st.rerun()
 
     hold_until = st.session_state.get("transition_hold_until") or now

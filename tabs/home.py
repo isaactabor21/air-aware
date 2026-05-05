@@ -10,7 +10,7 @@ Search form with full Milestone 3 adaptive interactivity:
 
 import streamlit as st
 from datetime import date, timedelta
-from data import ALL_AIRPORTS, fetch_live_flights, flights_data
+from data import ALL_AIRPORTS, fetch_live_flights, flights_data, build_fallback_flights
 from navigation import start_view_transition
 
 RESULTS_FILTER_DEFAULTS = {
@@ -221,7 +221,7 @@ def sync_search_widgets(search_params):
     if destination_options and destination not in destination_options:
         destination = destination_options[0]
 
-    departure_date = search_params.get("departure_date", date.today() + timedelta(days=7))
+    departure_date = search_params.get("departure_date", date.today())
 
     st.session_state.origin_select = origin
     st.session_state.destination_select = destination
@@ -258,8 +258,8 @@ def execute_search(search_params, save_recent=True):
 
     live = fetch_live_flights(search_params["origin"], search_params["destination"])
 
-    if live is None or len(live) == 0:
-        st.session_state.live_flights = flights_data
+    if not live:
+        st.session_state.live_flights = build_fallback_flights(search_params)
     else:
         st.session_state.live_flights = live
 
@@ -373,7 +373,7 @@ def render():
             departure_date = st.date_input(
                 "Departure",
                 min_value=date.today(),
-                value=date.today() + timedelta(days=7),
+                value=date.today(),
                 label_visibility="collapsed",
                 key="departure_date_input",
             )

@@ -1,5 +1,7 @@
 import streamlit as st
 from google import genai
+from google.genai import types
+import json
 
 from data import (
     flights_data,
@@ -25,27 +27,7 @@ INJECT_PHRASES = [
     "dan mode",
 ]
 
-def _get_gemini_key() -> str | None:
-    """
-    Return the Gemini API key from secrets, or None if missing/placeholder.
-    Supports both flat  GEMINI_KEY = "..."
-    and nested          [api]
-                        GEMINI_KEY = "..."   (matches professor's secrets style)
-    """
-    placeholders = {"", "YOUR_GEMINI_KEY_HERE", "YOUR_API_KEY_HERE"}
-    try:
-        # Try nested [api] table first (professor's pattern)
-        key = st.secrets.get("api", {}).get("GEMINI_KEY", "")
-        if key and key not in placeholders:
-            return key
-        # Flat key fallback
-        key = st.secrets.get("GEMINI_KEY", "")
-        return key if key not in placeholders else None
-    except Exception:
-        return None
-
-
-# Data Summary to give Gemini API
+# Data Summary
 
 def _build_data_summary() -> str:
     """
@@ -181,7 +163,7 @@ def _build_data_summary() -> str:
     else:
         lines.append("No search loaded — run a search on the Home tab to see weather data.")
 
-    # Whether the app is using live data or "mock" demo data.
+    # Whether the app is using live data or dallback demo data.
     lines.append("\n=== API STATUS ===")
     # This is used as a placeholder to check if user placed their actual keys in secrets if not in _ph, we assume it is real API key
     _ph = {"", "YOUR_AVIATIONSTACK_KEY_HERE", "YOUR_API_KEY_HERE"}
@@ -198,15 +180,13 @@ def _build_data_summary() -> str:
     return "\n".join(lines)
 
 
-# Define the AI Persona:
+# System Prompt
 
 def _build_system_prompt(data_summary: str) -> str:
     """
     - Telling the AI what it can and cannot do
     - Telling it to never break character (protect from attacks)
     - Specifying the response style (concise, factual, cite specific numbers)
-    - Few-shot examples that show how to use the data to answer questions
-
     """
     return f"""You are SkyAssist, the AI flight advisor built into Air Aware — a travel app that helps passengers compare flights, understand delay risk, and make smarter booking decisions. You have access to live data from AviationStack (flight results) and OpenWeatherMap (weather forecasts) summarised below.
 
@@ -229,17 +209,6 @@ RESPONSE STYLE:
 - Always cite specific numbers from the data (on-time %, price, temperature)
 - Use bold for flight names and key numbers
 
---- FEW-SHOT EXAMPLES (match this style and specificity) ---
-
-User: Which flight has the best chance of being on time?
-SkyAssist: Looking at your current results, the flight with the highest on-time probability is your top pick — check the on_time_prob column in the data. Anything at **67% or above** is considered low-risk in Air Aware. If multiple flights are close, I'd also weigh the weather penalty at the destination, since arrival delays dominate.
-
-User: Is weather going to be a problem on my route?
-SkyAssist: I check both airports. The delay penalty (0–30 pts) is subtracted from the base on-time probability — so a 10-pt penalty at the destination on a 90% flight brings it down to about 84%. Thunderstorms and heavy snow carry the highest penalties (20–30 pts). Mild wind or light rain is usually 5 pts or less. Check the weather section below for your specific route.
-
-User: What's the cheapest flight and should I book it?
-SkyAssist: The cheapest option is the one with the lowest listed price. Whether it's worth it depends on your trip: if it's a tight connection or a critical meeting, pay the premium for higher reliability. For flexible leisure travel, saving $30–50 on a medium-risk flight is usually fine. I'd avoid anything below 33% on-time — that's genuinely high-risk territory.
-
 --- LIVE DATA (from AviationStack + OpenWeatherMap, updated each search) ---
 
 {data_summary}
@@ -248,14 +217,56 @@ SkyAssist: The cheapest option is the one with the lowest listed price. Whether 
 Use the data above to give specific, grounded answers. If a field shows DEMO or unavailable, be transparent about that."""
 
 
-# Injection defense!
+# ── Injection Defense ─────────────────────────────────────────────────────────
 
 def _contains_injection(text: str) -> bool:
+    """Simple keyword-based prompt injection detection."""
     lowered = text.lower()
     return any(phrase in lowered for phrase in INJECT_PHRASES)
 
 
-# ── Main render ───────────────────────────────────────────────────────────────
+# ── Structured Output Schema ──────────────────────────────────────────────────
+
+STRUCTURED_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {
+            "type": "string",
+            "description": "A 1-2 sentence concise answer to the user's question"
+        },
+        "key_data_points": {
+            "type": "array",
+            "description": "List of relevant data points cited from the flight/weather data",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "metric": {"type": "string", "description": "Name of the metric (e.g., 'On-time probability', 'Price', 'Temperature')"},
+                    "value": {"type": "string", "description": "The actual value with units"},
+                    "flight": {"type": "string", "description": "Which flight this applies to (or 'all' if general)"}
+                },
+                "required": ["metric", "value", "flight"]
+            }
+        },
+        "recommendation": {
+            "type": "string",
+            "description": "If applicable, your recommendation based on the analysis"
+        },
+        "risk_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "not_applicable"],
+            "description": "Overall risk assessment if relevant to the question"
+        },
+        "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Your confidence in this answer based on available data"
+        }
+    },
+    "required": ["summary", "key_data_points", "confidence"]
+}
+
+
+# ── Main Render ───────────────────────────────────────────────────────────────
 
 def render():
     st.markdown("## ✈️ SkyAssist — AI Flight Advisor")
@@ -264,31 +275,22 @@ def render():
         "and OpenWeatherMap forecasts."
     )
 
-    # API key check
-    key = _get_gemini_key()
-    if not key:
-        st.error(
-            "Missing Gemini API key. "
-            "Add `GEMINI_KEY = \"your-key\"` to `.streamlit/secrets.toml` and restart."
-        )
-        st.info(
-            "Get a free key at [aistudio.google.com](https://aistudio.google.com). "
-            "The secrets file is already listed in `.gitignore`."
-        )
-        st.stop()
-
-    # Initialise Gemini client
+    # Initialize Gemini client
     try:
-        client = genai.Client(api_key=key)
+        if "GEMINI_KEY" not in st.secrets:
+            st.error("Missing API key. Add GEMINI_KEY to .streamlit/secrets.toml")
+            st.stop()
+        client = genai.Client(api_key=st.secrets["GEMINI_KEY"])
+
     except Exception as e:
         st.error(f"Could not initialise Gemini client: {e}")
         st.stop()
 
-    # Session state 
+    # Session state initialization
     if "assistant_messages" not in st.session_state:
         st.session_state.assistant_messages = []
 
-    # Make sure user has run a search and we have data to show, otherwise prompt them to do that first
+    # Check if search has been completed
     search_done = st.session_state.get("search_completed", False)
     if search_done:
         params = st.session_state.get("search_params", {})
@@ -305,52 +307,51 @@ def render():
             "SkyAssist will load your live AviationStack and weather data automatically."
         )
 
-    # Chain of Thought toggle + Clear Chat button
-    ctrl_col, clear_col = st.columns([3, 1])
+    st.markdown("### 🧠 AI Techniques")
 
-    with ctrl_col:
-        # TECHNIQUE 2 toggle — chain-of-thought
-        cot_enabled = st.checkbox(
-            "🧠 Show step-by-step reasoning (chain-of-thought)",
-            value=False,
-            help=(
-                "Makes SkyAssist reason through the data before answering: "
-                "1) relevant data → 2) patterns → 3) limitations → 4) conclusion."
-            ),
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        technique = st.radio(
+            "Choose response mode",
+            ["Standard", "Chain-of-Thought", "Structured Output"],
+            horizontal=True,
+            help="Only one mode can be active at a time"
         )
 
-    with clear_col:
-        def _clear_chat():
-            """on_click callback — clears history without st.rerun()."""
-            st.session_state.assistant_messages = []
-            st.toast("🗑️ Conversation cleared!", icon="✅")
+    use_cot = technique == "Chain-of-Thought"
+    use_structured = technique == "Structured Output"
 
+
+    def _clear_chat():
+        st.session_state.assistant_messages = []
+        st.toast("🗑️ Conversation cleared!", icon="🧹")
+
+    with col2:
         st.button(
             "🗑️ Clear chat",
             on_click=_clear_chat,
-            key="clear_chat_btn",
             use_container_width=True,
         )
 
-    st.markdown("---")
-
-    # Render conversation history
-    for msg in st.session_state.assistant_messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    #  Chat input 
+    # Chat input
     question = st.chat_input(
         "Ask about delay risk, weather impact, flight comparison, or how to use Air Aware…"
     )
 
     if question is None:
+        # Render existing conversation history
+        for msg in st.session_state.assistant_messages:
+            with st.chat_message(msg["role"]):
+                if msg.get("structured_data"):
+                    _render_structured_response(msg["structured_data"])
+                else:
+                    st.markdown(msg["content"])
         return  # nothing typed yet
 
-    # Error handling: Input validation 
-    if not question.strip():
+    if question.strip() == "":
         st.warning("⚠️ Please type a question before sending.")
-        st.stop()
+        return
 
     if len(question) > 2000:
         st.warning(
@@ -358,7 +359,11 @@ def render():
             "to under 2,000 for best results. Sending anyway…"
         )
 
-    # Injection defense!
+    st.session_state.assistant_messages.append({
+        "role": "user",
+        "content": question
+    })
+    # Injection defense
     if _contains_injection(question):
         refusal = (
             "🛡️ I'm SkyAssist and I only assist with Air Aware flight questions. "
@@ -375,58 +380,90 @@ def render():
     data_summary  = _build_data_summary()
     system_prompt = _build_system_prompt(data_summary)
 
-    # TECHNIQUE 2: Chain-of-thought steps injected into the user prompt
-    if cot_enabled:
-        prompt = (
-            f"{question}\n\n"
-            "Think step by step:\n"
-            "1) What flight and weather data from the summary is relevant?\n"
-            "2) What patterns or numbers stand out?\n"
-            "3) Are there any limitations or caveats to flag (e.g. demo data, "
-            "beyond forecast window)?\n"
-            "4) Give your final recommendation or answer clearly."
-        )
-    else:
-        prompt = (
-            f"{question}\n\n"
-            "RESPONE STYLE:\n"
-            "- Concise, factual, and calm — like a knowledgeable travel agent"
-            "- Always cite specific numbers from the data (on-time %, price, temperature)"
-            "- Use bold for flight names and key numbers"
-            "FEW-SHOT EXAMPLES (match this style and specificity):\n"
-            "User: Which flight has the best chance of being on time?\n"
-            "SkyAssist: Looking at your current results, the flight with the highest on-time probability is your top pick — check the on_time_prob column in the data. Anything at **67% or above** is considered low-risk in Air Aware. If multiple flights are close, I'd also weigh the weather penalty at the destination, since arrival delays dominate.\n\n"
-            "User: Is weather going to be a problem on my route?\n"
-            "SkyAssist: I check both airports. The delay penalty (0–30 pts) is subtracted from the base on-time probability — so a 10-pt penalty at the destination on a 90% flight brings it down to about 84%. Thunderstorms and heavy snow carry the highest penalties (20–30 pts). Mild wind or light rain is usually 5 pts or less. Check the weather section below for your specific route.\n\n"
-            "User: What's the cheapest flight and should I book it?\n"
-            "SkyAssist: The cheapest option is the one with the lowest listed price. Whether it's worth it depends on your trip: if it's a tight connection or a critical meeting, pay the premium for higher reliability. For flexible leisure travel, saving $30–50 on a medium-risk flight is usually fine. I'd avoid anything below 33% on-time — that's genuinely high-risk territory."
-        )
-
     # Prepend recent conversation history for multi-turn context
     history_text = ""
     for msg in st.session_state.assistant_messages[-10:]:
         role_label = "User" if msg["role"] == "user" else "SkyAssist"
         history_text += f"{role_label}: {msg['content']}\n"
 
-    full_prompt = (
-        f"{system_prompt}\n\n"
-        f"{history_text}"
-        f"User: {prompt}"
-    )
+    # Build the prompt based on selected technique
+    if use_cot:
+        # TECHNIQUE 1: Chain-of-Thought prompting
+        full_prompt = (
+            f"{system_prompt}\n\n"
+            f"{history_text}"
+            f"User: {question}\n\n"
+            f"Think step by step:\n"
+            f"1) What data is relevant to this question?\n"
+            f"2) What patterns or insights can I extract?\n"
+            f"3) What are the limitations of this data?\n"
+            f"4) What is my final conclusion and recommendation?\n\n"
+            f"Provide your reasoning for each step, then give your final answer."
+        )
+    else:
+        full_prompt = (
+            f"{system_prompt}\n\n"
+            f"{history_text}"
+            f"User: {question}"
+        )
 
-    # Show user message 
+    # Show user message
     with st.chat_message("user"):
         st.markdown(question)
     st.session_state.assistant_messages.append({"role": "user", "content": question})
 
-    #  Call Gemini 
+    # Call Gemini with appropriate configuration
     try:
         with st.spinner("SkyAssist is analyzing your flight data…"):
-            r = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=full_prompt,
-            )
-        answer = r.text
+            if use_structured:
+                # TECHNIQUE 2: Structured Output using response schema
+                response = client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=STRUCTURED_SCHEMA
+                    )
+                )
+                
+                # Parse the JSON response
+                try:
+                    structured_data = json.loads(response.text)
+                    
+                    # Display structured response
+                    with st.chat_message("assistant"):
+                        _render_structured_response(structured_data)
+                    
+                    # Store in session with structured flag
+                    st.session_state.assistant_messages.append({
+                        "role": "assistant",
+                        "content": response.text,
+                        "structured_data": structured_data
+                    })
+                    
+                except json.JSONDecodeError:
+                    st.error("Failed to parse structured response. Displaying raw output:")
+                    with st.chat_message("assistant"):
+                        st.markdown(response.text)
+                    st.session_state.assistant_messages.append({
+                        "role": "assistant",
+                        "content": response.text
+                    })
+                    
+            else:
+                # Standard response
+                response = client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=full_prompt,
+                )
+                answer = response.text
+                
+                with st.chat_message("assistant"):
+                    st.markdown(answer)
+                st.session_state.assistant_messages.append({
+                    "role": "assistant",
+                    "content": answer
+                })
 
     except Exception as e:
         err = str(e).lower()
@@ -441,7 +478,46 @@ def render():
         else:
             answer = f"⚠️ Something went wrong — please try again. ({e})"
 
-    #  Show and persist response 
-    with st.chat_message("assistant"):
-        st.markdown(answer)
-    st.session_state.assistant_messages.append({"role": "assistant", "content": answer})
+        with st.chat_message("assistant"):
+            st.markdown(answer)
+        st.session_state.assistant_messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+
+def _render_structured_response(data: dict):
+    """Render a structured JSON response in a user-friendly format."""
+    
+    # Summary at the top
+    st.markdown(f"**Summary:** {data.get('summary', 'N/A')}")
+    
+    # Key data points in an expandable section
+    if data.get("key_data_points"):
+        with st.expander("📊 Key Data Points", expanded=True):
+            for point in data["key_data_points"]:
+                st.markdown(
+                    f"- **{point.get('metric')}** ({point.get('flight', 'N/A')}): "
+                    f"`{point.get('value', 'N/A')}`"
+                )
+    
+    # Recommendation and risk in columns
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if data.get("recommendation"):
+            st.markdown(f"**💡 Recommendation:**")
+            st.info(data["recommendation"])
+    
+    with col2:
+        if data.get("risk_level") and data["risk_level"] != "not_applicable":
+            risk_emoji = {"low": "✅", "medium": "⚠️", "high": "🔴"}
+            st.markdown(f"**⚡ Risk Level:**")
+            st.markdown(f"{risk_emoji.get(data['risk_level'], '❓')} {data['risk_level'].upper()}")
+    
+    with col3:
+        if data.get("confidence"):
+            conf_emoji = {"high": "🎯", "medium": "🤔", "low": "❓"}
+            st.markdown(f"**🎯 Confidence:**")
+            st.markdown(f"{conf_emoji.get(data['confidence'], '❓')} {data['confidence'].upper()}")
+

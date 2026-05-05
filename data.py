@@ -11,9 +11,47 @@ see actual conditions, not just historical estimates.
 import streamlit as st
 import requests
 
+
 # =============================================================================
 # FALLBACK MOCK DATA
 # =============================================================================
+def build_fallback_flights(search_params):
+    import random
+    origin = search_params["origin"]
+    destination = search_params["destination"]
+
+    base_airlines = AIRLINES_BY_ORIGIN.get(origin, ["United", "Delta", "American"])
+
+    times = [
+        ("06:00 AM", "09:00 AM"),
+        ("09:15 AM", "12:15 PM"),
+        ("12:30 PM", "03:30 PM"),
+        ("04:45 PM", "07:45 PM"),
+        ("08:00 PM", "11:00 PM"),
+    ]
+
+    flights = []
+
+    for i, (dep, arr) in enumerate(times):
+        airline = base_airlines[i % len(base_airlines)]
+
+        flights.append({
+            "id": i + 1,
+            "airline": airline,
+            "flight_num": f"Airlines Flight {random.randint(100, 999)}",
+            "origin": origin,
+            "destination": destination,
+            "departure": dep,
+            "arrival": arr,
+            "duration": "3h 00m",
+            "stops": "Nonstop",
+            "on_time_prob": 92 - (i * 4),
+            "price": 250 + (i * 35),
+            "risk_factors": ["Estimated data (API unavailable)"],
+            "status": "Estimated",
+        })
+
+    return flights
 
 flights_data = [
     {"id": 1, "airline": "United", "flight_num": "441", "origin": "MSP", "destination": "DCA",
@@ -107,7 +145,6 @@ def fetch_live_flights(origin: str, destination: str):
         return None  # No key — caller falls back to mock data
 
     # NOTE: arr_iata is excluded intentionally — it requires a paid AviationStack plan.
-    # We fetch all departures from origin and filter by destination client-side below.
     params = {
         "access_key": api_key,
         "dep_iata": origin.upper().strip(),
@@ -141,7 +178,9 @@ def fetch_live_flights(origin: str, destination: str):
             st.error(f"❌ Unexpected error (HTTP {response.status_code}). Please try again.")
             return None
 
-        all_flights = response.json().get("data", [])
+        # Fallback if .json() or "data" key is None
+        response_json = response.json() or {}
+        all_flights = response_json.get("data", []) or []
 
         if not all_flights:
             st.warning("📭 No live flights found for this departure airport. Showing estimated data.")
@@ -151,18 +190,35 @@ def fetch_live_flights(origin: str, destination: str):
         dest = destination.upper().strip()
         flights = [
             f for f in all_flights
-            if f.get("arrival", {}).get("iata", "").upper() == dest
+            if (f.get("arrival", {}) or {}).get("iata", "").upper() == dest
         ]
 
         if not flights:
             st.warning(f"📭 No flights found from {origin.upper()} to {dest} in live data. Showing estimated data.")
             return []
 
-        # Parse API response into app-friendly dicts
+        # Parse API response into app-friendly dicts with safe-navigation fallback values
         parsed = []
         for i, f in enumerate(flights):
-            dep = f.get("departure", {})
-            arr = f.get("arrival", {})
+            # Ensure flight dictionary itself isn't None
+            if not isinstance(f, dict):
+                continue
+
+            dep = f.get("departure", {}) or {}
+            arr = f.get("arrival", {}) or {}
+            airline_info = f.get("airline", {}) or {}
+            flight_info = f.get("flight", {}) or {}
+
+            # Handle possible None airline name by looking at nested codeshare info
+            airline_name = airline_info.get("name")
+            if not airline_name:
+                codeshared = flight_info.get("codeshared")
+                if isinstance(codeshared, dict):
+                    airline_name = codeshared.get("airline_name")
+                
+            if not airline_name:
+                airline_name = "Unknown"
+
             delay_min = dep.get("delay") or 0
 
             if delay_min == 0:
@@ -176,8 +232,8 @@ def fetch_live_flights(origin: str, destination: str):
 
             parsed.append({
                 "id": i + 1,
-                "airline": f.get("airline", {}).get("name", "Unknown"),
-                "flight_num": f.get("flight", {}).get("iata", f"FL{i+1}"),
+                "airline": airline_name.title(),
+                "flight_num": flight_info.get("iata") or f"FL{i+1}",
                 "origin": dep.get("iata", origin),
                 "destination": arr.get("iata", destination),
                 "departure": _fmt_time(dep.get("scheduled")),
@@ -187,9 +243,8 @@ def fetch_live_flights(origin: str, destination: str):
                 "on_time_prob": prob,
                 "price": 0,
                 "risk_factors": [f"Delay: {delay_min} min"] if delay_min else ["On schedule"],
-                "status": f.get("flight_status", "Scheduled").capitalize(),
+                "status": str(f.get("flight_status", "Scheduled")).capitalize(),
             })
-
 
         return parsed
 
