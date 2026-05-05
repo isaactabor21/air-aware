@@ -215,9 +215,17 @@ def fetch_live_flights(origin: str, destination: str):
                 codeshared = flight_info.get("codeshared")
                 if isinstance(codeshared, dict):
                     airline_name = codeshared.get("airline_name")
-                
+
+            # Fallback to IATA code if name is still None
             if not airline_name:
-                airline_name = "Unknown"
+                airline_iata = airline_info.get("iata")
+                if airline_iata:
+                    airline_name = airline_iata
+                else:
+                    airline_name = "Unknown"
+
+            # Ensure airline_name is a string and title-case it safely
+            airline_name = str(airline_name).title()
 
             delay_min = dep.get("delay") or 0
 
@@ -232,10 +240,10 @@ def fetch_live_flights(origin: str, destination: str):
 
             parsed.append({
                 "id": i + 1,
-                "airline": airline_name.title(),
+                "airline": airline_name,  # Already title-cased above, don't call .title() again
                 "flight_num": flight_info.get("iata") or f"FL{i+1}",
-                "origin": dep.get("iata", origin),
-                "destination": arr.get("iata", destination),
+                "origin": (dep.get("iata") or origin),
+                "destination": (arr.get("iata") or destination),
                 "departure": _fmt_time(dep.get("scheduled")),
                 "arrival":   _fmt_time(arr.get("scheduled")),
                 "duration":  _calc_duration(dep.get("scheduled"), arr.get("scheduled")),
